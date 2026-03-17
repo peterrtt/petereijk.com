@@ -213,13 +213,13 @@
     function render() {
       numEl.textContent = display;
 
-      // Shrink font as number gets longer
-      const len = display.length;
-      let size = 96;
-      if (len >= 10) size = 76;
-      if (len >= 12) size = 60;
-      if (len >= 15) size = 46;
-      numEl.style.fontSize = size + 'px';
+      // Shrink font to fit — measure actual rendered width like iOS does
+      const available = document.getElementById('display').clientWidth - 44;
+      numEl.style.fontSize = '96px';
+      if (numEl.scrollWidth > available) {
+        const fitted = Math.floor(96 * available / numEl.scrollWidth) - 2;
+        numEl.style.fontSize = Math.max(fitted, 24) + 'px';
+      }
 
       // AC when truly blank, C otherwise
       clearBtn.textContent = (display === '0' && prev === null && !pendingOp) ? 'AC' : 'C';
