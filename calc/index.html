@@ -20,6 +20,7 @@
 
     html, body {
       height: 100%;
+      height: 100dvh;
       background: #000;
       overflow: hidden;
       touch-action: none;
@@ -29,6 +30,7 @@
       display: flex;
       flex-direction: column;
       height: 100%;
+      height: 100dvh;
       /* Respect Dynamic Island at top and home indicator at bottom */
       padding-top: env(safe-area-inset-top);
       padding-bottom: env(safe-area-inset-bottom);
@@ -60,20 +62,20 @@
     }
 
     /* ── Magic hint dot ── */
-    /* Tiny dot bottom-left — only you know to look here */
+    /* Small digit count hint bottom-left — only you know to look here */
     #magic-hint {
       position: absolute;
-      bottom: 14px;
+      bottom: 12px;
       left: 18px;
-      width: 5px;
-      height: 5px;
-      border-radius: 50%;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.2s;
     }
-    #magic-hint.plus  { background: #30d158; opacity: 0.75; }
-    #magic-hint.minus { background: #ff453a; opacity: 0.75; }
+    #magic-hint.plus  { color: #30d158; opacity: 0.85; }
+    #magic-hint.minus { color: #ff453a; opacity: 0.85; }
 
     /* ── Button grid ── */
     #grid {
@@ -297,7 +299,7 @@
         prev      = magicResultRaw;   // use exact float, not parseFloat(fmt(...))
         magicState = 'entering';
         magicIndex = 0;
-        magicHintEl.className = '';   // dot heeft zijn doel gedaan
+        magicHintEl.className = ''; magicHintEl.textContent = '';   // dot heeft zijn doel gedaan
       }
     }
 
@@ -316,11 +318,12 @@
         magicDigits   = String(abs).split('');
         magicIndex    = 0;
         magicState    = 'awaiting-op';
+        magicHintEl.textContent = (needed >= 0 ? '+' : '−') + magicDigits.length;
         magicHintEl.className = needed >= 0 ? 'plus' : 'minus';
       } else if (magicState === 'complete') {
         // Magic reveal done — reset for next performance
         magicState = null;
-        magicHintEl.className = '';
+        magicHintEl.className = ''; magicHintEl.textContent = '';
       }
 
       prev      = null;
@@ -333,7 +336,7 @@
       // Emergency exit from magic sequence
       if (magicState === 'entering' || magicState === 'awaiting-op' || magicState === 'complete') {
         magicState = null;
-        magicHintEl.className = '';
+        magicHintEl.className = ''; magicHintEl.textContent = '';
       }
 
       if (clearBtn.textContent === 'C') {
@@ -427,7 +430,7 @@
         magicLongTimer = null;
         magicMode  = !magicMode;
         magicState = null;
-        magicHintEl.className = '';
+        magicHintEl.className = ''; magicHintEl.textContent = '';
         // Confirmation: % button flashes green (on) or red (off)
         pctBtn.style.background = magicMode ? '#30d158' : '#ff453a';
         setTimeout(() => { pctBtn.style.background = '#a5a5a5'; }, 500);
