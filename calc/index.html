@@ -72,13 +72,8 @@
       pointer-events: none;
       transition: opacity 0.2s;
     }
-    #magic-hint.plus  { background: #30d158; opacity: 0.75; animation: hint-fade 1.5s forwards; }
-    #magic-hint.minus { background: #ff453a; opacity: 0.75; animation: hint-fade 1.5s forwards; }
-    @keyframes hint-fade {
-      0%   { opacity: 0.75; }
-      60%  { opacity: 0.75; }
-      100% { opacity: 0; }
-    }
+    #magic-hint.plus  { background: #30d158; opacity: 0.75; }
+    #magic-hint.minus { background: #ff453a; opacity: 0.75; }
 
     /* ── Button grid ── */
     #grid {
@@ -299,8 +294,10 @@
 
       // Magic: operator pressed after the multiplication result — start entry phase
       if (magicState === 'awaiting-op') {
+        prev      = magicResultRaw;   // use exact float, not parseFloat(fmt(...))
         magicState = 'entering';
         magicIndex = 0;
+        magicHintEl.className = '';   // dot heeft zijn doel gedaan
       }
     }
 
@@ -315,6 +312,7 @@
         const target  = getMagicTarget();
         const needed  = target - result;
         const abs     = Math.abs(Math.round(needed));
+        magicResultRaw = result;
         magicDigits   = String(abs).split('');
         magicIndex    = 0;
         magicState    = 'awaiting-op';
@@ -401,10 +399,11 @@
     // ── MAGIC TRICK ──────────────────────────────────────────
     // ════════════════════════════════════════════════════════
 
-    let magicMode  = false;
-    let magicState = null;   // null | 'awaiting-op' | 'entering' | 'complete'
-    let magicDigits = [];
-    let magicIndex  = 0;
+    let magicMode      = false;
+    let magicState     = null;   // null | 'awaiting-op' | 'entering' | 'complete'
+    let magicDigits    = [];
+    let magicIndex     = 0;
+    let magicResultRaw = 0;      // raw multiplication result (avoids fmt() rounding)
 
     const magicHintEl = document.getElementById('magic-hint');
 
