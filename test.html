@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Calculator">
+  <title>Calculator</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      /* Respect Dynamic Island at top and home indicator at bottom */
+      padding-top: env(safe-area-inset-top);
+      padding-bottom: env(safe-area-inset-bottom);
+      background: #000;
+    }
+
+    /* ── Display ── */
+    #display {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 0 22px 6px;
+      overflow: hidden;
+    }
+
+    #number {
+      color: #fff;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 200;
+      font-size: 96px;
+      line-height: 1;
+      letter-spacing: -2px;
+      white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+    }
+
+    /* ── Button grid ── */
+    #grid {
+      padding: 0 12px 8px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .btn {
+      border: none;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      touch-action: manipulation;
+      border-radius: 50%;
+      aspect-ratio: 1;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-weight: 400;
+      font-size: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+      transition: filter 60ms;
+    }
+
+    /* Press feedback */
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: transparent;
+      transition: background 60ms;
+    }
+    .btn:active::after {
+      background: rgba(255,255,255,0.18);
+    }
+    .op:active::after {
+      background: rgba(0,0,0,0.22);
+    }
+
+    /* Function buttons: AC/C, +/−, % */
+    .fn {
+      background: #a5a5a5;
+      color: #1c1c1e;
+      font-size: 30px;
+      font-weight: 500;
+    }
+
+    /* Operator buttons: ÷ × − + = */
+    .op {
+      background: #ff9f0a;
+      color: #fff;
+      font-size: 38px;
+    }
+
+    /* Active/selected operator (after tapping operator, before next digit) */
+    .op.selected {
+      background: #fff;
+      color: #ff9f0a;
+    }
+    /* Inverted press feedback for selected operator */
+    .op.selected:active::after {
+      background: rgba(255, 159, 10, 0.25);
+    }
+
+    /* Number buttons */
+    .num {
+      background: #333333;
+      color: #fff;
+    }
+
+    /* Zero: pill spanning 2 columns, text on left */
+    .zero {
+      grid-column: span 2;
+      aspect-ratio: auto;
+      border-radius: 9999px;
+      justify-content: flex-start;
+      /*
+        Left-align text to the visual "center" of the left circle.
+        Each button = (100vw - 24px padding - 36px gaps) / 4
+        Center of one button = that / 2
+        = (100vw - 60px) / 8
+      */
+      padding-left: calc((100vw - 60px) / 8);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="display">
+      <div id="number">0</div>
+    </div>
+    <div id="grid">
+      <!-- Row 1 -->
+      <button class="btn fn" id="btn-clear">AC</button>
+      <button class="btn fn" id="btn-sign">+/−</button>
+      <button class="btn fn" id="btn-pct">%</button>
+      <button class="btn op" data-op="÷">÷</button>
+      <!-- Row 2 -->
+      <button class="btn num" data-digit="7">7</button>
+      <button class="btn num" data-digit="8">8</button>
+      <button class="btn num" data-digit="9">9</button>
+      <button class="btn op" data-op="×">×</button>
+      <!-- Row 3 -->
+      <button class="btn num" data-digit="4">4</button>
+      <button class="btn num" data-digit="5">5</button>
+      <button class="btn num" data-digit="6">6</button>
+      <button class="btn op" data-op="−">−</button>
+      <!-- Row 4 -->
+      <button class="btn num" data-digit="1">1</button>
+      <button class="btn num" data-digit="2">2</button>
+      <button class="btn num" data-digit="3">3</button>
+      <button class="btn op" data-op="+">+</button>
+      <!-- Row 5 -->
+      <button class="btn num zero" data-digit="0">0</button>
+      <button class="btn num" id="btn-dot">.</button>
+      <button class="btn op" id="btn-eq">=</button>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──
+    let display = '0';
+    let prev    = null;
+    let pendingOp = null;
+    let fresh   = false; // next digit replaces the display
+
+    const numEl    = document.getElementById('number');
+    const clearBtn = document.getElementById('btn-clear');
+
+    // ── Render ──
+    function render() {
+      numEl.textContent = display;
+
+      // Shrink font as number gets longer
+      const len = display.length;
+      let size = 96;
+      if (len >= 10) size = 76;
+      if (len >= 12) size = 60;
+      if (len >= 15) size = 46;
+      numEl.style.fontSize = size + 'px';
+
+      // AC when truly blank, C otherwise
+      clearBtn.textContent = (display === '0' && prev === null && !pendingOp) ? 'AC' : 'C';
+    }
+
+    function setDisplay(val) { display = val; render(); }
+
+    function highlightOp(op) {
+      document.querySelectorAll('[data-op]').forEach(b => b.classList.remove('selected'));
+      if (op) {
+        const btn = document.querySelector(`[data-op="${CSS.escape(op)}"]`);
+        if (btn) btn.classList.add('selected');
+      }
+    }
+
+    // ── Input handlers ──
+    function onDigit(d) {
+      if (fresh) {
+        setDisplay(d === '0' ? '0' : d);
+        fresh = false;
+      } else {
+        if (display === '0') setDisplay(d);
+        else if (display.replace(/[\-\.]/g, '').length < 9) setDisplay(display + d);
+      }
+      highlightOp(null);
+    }
+
+    function onDot() {
+      if (fresh) { setDisplay('0.'); fresh = false; }
+      else if (!display.includes('.')) setDisplay(display + '.');
+      highlightOp(null);
+    }
+
+    function onOperator(op) {
+      const cur = parseFloat(display);
+      if (pendingOp && !fresh) {
+        const result = compute(prev, cur, pendingOp);
+        setDisplay(fmt(result));
+        prev = result;
+      } else {
+        prev = cur;
+      }
+      pendingOp = op;
+      fresh = true;
+      highlightOp(op);
+    }
+
+    function onEquals() {
+      if (pendingOp === null) return;
+      const cur    = parseFloat(display);
+      const result = compute(prev, cur, pendingOp);
+      setDisplay(fmt(result));
+      prev      = null;
+      pendingOp = null;
+      fresh     = true;
+      highlightOp(null);
+    }
+
+    function onClear() {
+      if (clearBtn.textContent === 'C') {
+        setDisplay('0');
+        // Keep pending op / prev so user can continue
+      } else {
+        setDisplay('0');
+        prev      = null;
+        pendingOp = null;
+        fresh     = false;
+        highlightOp(null);
+      }
+    }
+
+    function onSign() {
+      if (display === '0') return;
+      setDisplay(display.startsWith('-') ? display.slice(1) : '-' + display);
+    }
+
+    function onPercent() {
+      setDisplay(fmt(parseFloat(display) / 100));
+    }
+
+    // ── Math ──
+    function compute(a, b, op) {
+      switch (op) {
+        case '+': return a + b;
+        case '−': return a - b;
+        case '×': return a * b;
+        case '÷': return b !== 0 ? a / b : 0;
+      }
+    }
+
+    function fmt(n) {
+      if (!isFinite(n)) return '0';
+      // Kill floating-point noise (e.g. 0.1+0.2)
+      let s = parseFloat(n.toPrecision(10)).toString();
+      // Too many digits → fewer sig figs
+      if (s.replace(/[-\.]/g, '').length > 9) s = parseFloat(n.toPrecision(7)).toString();
+      // Still too long → scientific notation
+      if (s.length > 12) s = n.toExponential(3);
+      return s;
+    }
+
+    // ── Wire up buttons ──
+    document.querySelectorAll('[data-digit]').forEach(btn =>
+      btn.addEventListener('click', () => onDigit(btn.dataset.digit)));
+
+    document.querySelectorAll('[data-op]').forEach(btn =>
+      btn.addEventListener('click', () => onOperator(btn.dataset.op)));
+
+    document.getElementById('btn-clear').addEventListener('click', onClear);
+    document.getElementById('btn-sign').addEventListener('click', onSign);
+    document.getElementById('btn-pct').addEventListener('click', onPercent);
+    document.getElementById('btn-dot').addEventListener('click', onDot);
+    document.getElementById('btn-eq').addEventListener('click', onEquals);
+
+    render();
+  </script>
+</body>
+</html>
