@@ -7,6 +7,50 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Calculator">
   <title>Calculator</title>
+  <script>
+    // Generate Apple-style Calculator icon and inject as apple-touch-icon
+    (function () {
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const g = c.getContext('2d');
+      g.scale(0.5, 0.5); // work in 1024-unit space
+
+      // Background
+      g.fillStyle = '#000';
+      g.fillRect(0, 0, 1024, 1024);
+
+      // Display area
+      g.fillStyle = '#1c1c1e';
+      g.beginPath(); g.roundRect(60, 60, 904, 200, 20); g.fill();
+      g.fillStyle = 'rgba(255,255,255,0.9)';
+      g.font = '200 130px -apple-system,sans-serif';
+      g.textAlign = 'right';
+      g.textBaseline = 'alphabetic';
+      g.fillText('0', 940, 228);
+
+      // Button circles [cx, cy, color]
+      const gr = '#a5a5a5', dk = '#333333', or = '#ff9f0a';
+      [
+        [167,342,gr],[397,342,gr],[627,342,gr],[857,342,or],
+        [167,482,dk],[397,482,dk],[627,482,dk],[857,482,or],
+        [167,622,dk],[397,622,dk],[627,622,dk],[857,622,or],
+        [167,762,dk],[397,762,dk],[627,762,dk],[857,762,or],
+        [627,902,dk],[857,902,or],
+      ].forEach(([cx, cy, col]) => {
+        g.beginPath(); g.arc(cx, cy, 62, 0, Math.PI * 2);
+        g.fillStyle = col; g.fill();
+      });
+
+      // Zero pill button
+      g.fillStyle = dk;
+      g.beginPath(); g.roundRect(60, 840, 444, 124, 62); g.fill();
+
+      const link = document.createElement('link');
+      link.rel = 'apple-touch-icon';
+      link.href = c.toDataURL();
+      document.head.appendChild(link);
+    })();
+  </script>
   <style>
     *, *::before, *::after {
       margin: 0;
