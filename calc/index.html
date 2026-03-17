@@ -283,6 +283,8 @@
 
     // ── Input handlers ──
     function onDigit(d) {
+      if (magicState === 'complete') return; // alle cijfers al in — blokkeer extra invoer
+
       // ── Magic: replace digit with needed digit ──
       if (magicState === 'entering') {
         if (magicIndex >= magicDigits.length) return; // ignore extra presses
