@@ -86,14 +86,28 @@
       flex: 1;
       min-height: 0;
       display: flex;
-      align-items: flex-end;
+      flex-direction: column;
       justify-content: flex-end;
       padding: 0 22px 6px;
       overflow: hidden;
       position: relative;
     }
 
+    /* RTL wrapper: anchors content to right, scroll goes left */
+    #number-wrap {
+      overflow-x: auto;
+      overflow-y: hidden;
+      direction: rtl;
+      scrollbar-width: none;
+      touch-action: pan-x;
+    }
+    #number-wrap::-webkit-scrollbar { display: none; }
+
     #number {
+      direction: ltr;       /* keep digits readable */
+      display: inline-block;
+      min-width: 100%;      /* short numbers stay right-aligned */
+      text-align: right;
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       font-weight: 200;
@@ -101,8 +115,6 @@
       line-height: 1;
       letter-spacing: -2px;
       white-space: nowrap;
-      max-width: 100%;
-      overflow: hidden;
     }
 
     /* ── Magic hint dot ── */
@@ -215,7 +227,7 @@
   <div id="app">
     <div id="display">
       <div id="magic-hint"></div>
-      <div id="number">0</div>
+      <div id="number-wrap"><div id="number">0</div></div>
     </div>
     <div id="grid">
       <!-- Row 1 -->
@@ -255,23 +267,43 @@
     const numEl    = document.getElementById('number');
     const clearBtn = document.getElementById('btn-clear');
 
+    let exprHistory = ''; // accumulated expression left of current input, e.g. "568×8683353×"
+
+    const wrapEl = document.getElementById('number-wrap');
+
     // ── Render ──
     function render() {
-      numEl.textContent = display;
+      const shown = exprHistory
+        ? exprHistory + (fresh ? '' : formatNum(display))
+        : formatNum(display);
+      numEl.textContent = shown;
 
-      // Shrink font to fit — measure actual rendered width like iOS does
-      const available = document.getElementById('display').clientWidth - 44;
+      // 1. Shrink font until it fits, down to 30px minimum
       numEl.style.fontSize = '96px';
+      const available = wrapEl.clientWidth;
       if (numEl.scrollWidth > available) {
         const fitted = Math.floor(96 * available / numEl.scrollWidth) - 2;
-        numEl.style.fontSize = Math.max(fitted, 24) + 'px';
+        numEl.style.fontSize = Math.max(fitted, 56) + 'px';
       }
 
-      // AC when truly blank, C otherwise
+      // 2. If still too wide at min font, reset scroll to right end
+      //    (RTL wrapper: scrollLeft=0 = right edge, positive = further left)
+      requestAnimationFrame(() => { wrapEl.scrollLeft = 0; });
+
       clearBtn.textContent = (display === '0' && prev === null && !pendingOp) ? 'AC' : 'C';
     }
 
     function setDisplay(val) { display = val; render(); }
+
+    // Add thousands separators for display only (display variable stays raw for calculations)
+    function formatNum(s) {
+      if (!s || s.includes('e')) return s;
+      const neg = s.startsWith('-');
+      const str = neg ? s.slice(1) : s;
+      const [intPart, decPart] = str.split('.');
+      const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+      return (neg ? '-' : '') + grouped + (decPart !== undefined ? '.' + decPart : '');
+    }
 
     function highlightOp(op) {
       document.querySelectorAll('[data-op]').forEach(b => b.classList.remove('selected'));
@@ -331,13 +363,17 @@
       const cur = parseFloat(display);
       if (pendingOp && !fresh) {
         const result = compute(prev, cur, pendingOp);
-        setDisplay(fmt(result));
+        const typed = display;
         prev = result;
+        display = fmt(result);
+        exprHistory = exprHistory + formatNum(typed) + op;
       } else {
         prev = cur;
+        exprHistory = formatNum(display) + op;
       }
       pendingOp = op;
       fresh = true;
+      render();
       highlightOp(op);
 
       // Magic: operator pressed after the multiplication result — start entry phase
@@ -353,6 +389,7 @@
       if (pendingOp === null) return;
       const cur    = parseFloat(display);
       const result = compute(prev, cur, pendingOp);
+      exprHistory = '';
       setDisplay(fmt(result));
 
       // ── Magic: after multiplication result, calculate needed adjustment ──
@@ -390,9 +427,10 @@
         // Keep pending op / prev so user can continue
       } else {
         setDisplay('0');
-        prev      = null;
-        pendingOp = null;
-        fresh     = false;
+        prev        = null;
+        pendingOp   = null;
+        fresh       = false;
+        exprHistory = '';
         highlightOp(null);
       }
     }
